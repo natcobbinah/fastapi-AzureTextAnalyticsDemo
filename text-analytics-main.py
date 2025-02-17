@@ -1,6 +1,18 @@
+from environs import env
 import utils
 from fastapi import FastAPI
 from pydantic import BaseModel
+import  logging 
+from opencensus.ext.azure.log_exporter import AzureLogHandler
+
+env.read_env()  # read .env file, if it exists
+# required variables
+INSTRUMENTATION_KEY = env.str("INSTRUMENTATION_KEY")
+
+
+logger = logging.getLogger(__name__)
+logger.addHandler(AzureLogHandler(connection_string=f'InstrumentationKey={INSTRUMENTATION_KEY}'))
+
 
 app = FastAPI()
 
@@ -33,7 +45,18 @@ def analyze_text(text: Model):
             "sentiment": result.sentiment,
             "sentence":result.sentences[0].text
         }
+
+        log_data = {
+            "custom_dimensions":{
+                "text_id": result.id,
+                "text": result.sentences[0].text,
+                "text_sentiment":result.sentiment,
+            }
+        }
+        logger.info("Text processed successfully", extra=log_data)
+
         grouped_sentiment_result.append(response)
+
     
     return grouped_sentiment_result
 
